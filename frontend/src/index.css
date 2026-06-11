@@ -1,0 +1,80 @@
+/* RENK PALETI - "Tech & Trust" (genel uygulama paleti)
+   #ffffff beyaz · #f1f5f9 açık gri · #1e293b antrasit · #2563eb mavi (aksan) */
+
+:root {
+    --color-bg: #f1f5f9;
+    --color-card: #FFFFFF;
+    --color-card-alt: #e2e8f0;
+    --color-accent: #2563eb;
+    --color-accent-hover: #1d4ed8;
+    --color-soft: #60a5fa;
+    --color-soft-tint: #dbeafe;
+    --color-neutral: #e2e8f0;
+    --color-text: #1e293b;
+    --color-text-light: #64748b;
+    --color-warning: #dc2626;
+    --color-success: #64748b;
+    --color-border: #e2e8f0;
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --radius: 8px;
+    --shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
+
+button {
+    cursor: pointer;
+    font-family: inherit;
+    border: none;
+    border-radius: var(--radius);
+    padding: 10px 20px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+input,
+select,
+textarea {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-card);
+    color: var(--color-text);
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--color-accent);
+}
+
+a {
+    color: var(--color-accent);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--color-accent-hover);
+}
