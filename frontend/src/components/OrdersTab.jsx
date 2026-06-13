@@ -3,7 +3,7 @@ import api from '../services/api'
 import ErrorModal from './ErrorModal'
 import ConfirmModal from './ConfirmModal'
 import Modal from './Modal'
-import { formatPara, formatTelefon, formatTarih, getCleanPhoneNumber } from '../utils/helpers'
+import { formatPara, formatTelefon, formatTarih, getCleanPhoneNumber, formatPhoneInput, capitalize } from '../utils/helpers'
 
 const DURUM_LABELS = {
   // Eski kayıtların görünüm uyumluluğu
@@ -116,6 +116,15 @@ export default function OrdersTab() {
   // Hata ve Onay Modalları
   const [errorModal, setErrorModal] = useState(null)
   const [confirmModal, setConfirmModal] = useState(null)
+  
+  // Çoklu Seçim ve Rota Modalı için State'ler
+  const [seciliSiparisler, setSeciliSiparisler] = useState([])
+  const [rotaModalAcik, setRotaModalAcik] = useState(false)
+  const [draggedItemIndex, setDraggedItemIndex] = useState(null)
+  const [dragOverItemIndex, setDragOverItemIndex] = useState(null)
+
+  const [yeniMusteriModal, setYeniMusteriModal] = useState(false)
+  const [yeniMusteriForm, setYeniMusteriForm] = useState({ ad: '', soyad: '', telefon: '', adres: '' })
 
   // ========== EFFECTS ==========
   useEffect(() => {
@@ -186,11 +195,62 @@ export default function OrdersTab() {
     setLoading(false)
   }
 
+  // ========== ROTA OLUSTURMA FONKSIYONLARI ==========
+  const toggleSiparisSecim = (siparis) => {
+    setSeciliSiparisler((prev) => 
+      prev.some(s => s.id === siparis.id)
+        ? prev.filter(s => s.id !== siparis.id)
+        : [...prev, siparis]
+    )
+  }
+
+  const handleDragStart = (e, index) => {
+    setDraggedItemIndex(index)
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  const handleDrop = (e, index) => {
+    e.preventDefault()
+    setDragOverItemIndex(null)
+    if (draggedItemIndex === null || draggedItemIndex === index) return
+    const yeni = [...seciliSiparisler]
+    const draggedItem = yeni.splice(draggedItemIndex, 1)[0]
+    yeni.splice(index, 0, draggedItem)
+    setSeciliSiparisler(yeni)
+    setDraggedItemIndex(null)
+  }
+
+  const rotayiBaslat = () => {
+    const adresler = seciliSiparisler
+      .map(s => s.musteri_adres)
+      .filter(adres => adres && adres.trim() !== '');
+
+    if (adresler.length === 0) {
+      setErrorModal({ baslik: "Adres Bulunamadı", mesaj: "Seçilen siparişlerin hiçbirinde kayıtlı adres bilgisi bulunmuyor." });
+      return;
+    }
+
+    const destination = adresler[adresler.length - 1];
+    const waypoints = adresler.slice(0, -1).join('|');
+
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ''}`;
+
+    window.open(mapsUrl, '_blank');
+    setRotaModalAcik(false);
+    setSeciliSiparisler([]); // Rotayı başlattıktan sonra seçimi temizle
+  }
+
   // ========== DURUM, SIL, PDF ==========
   const updateDurum = async (siparis, yeniDurum) => {
     if (yeniDurum === siparis.durum) return
     try {
       await api.put(`/orders/${siparis.id}/durum`, { durum: yeniDurum })
+      
+      // Sipariş rotaya eklenmişse ve durumu 'paketlendi' dışına çıkarsa rotadan temizle
+      if (yeniDurum !== 'paketlendi' && yeniDurum !== 'hazir') {
+        setSeciliSiparisler((prev) => prev.filter(s => s.id !== siparis.id))
+      }
+      
       loadOrders()
     } catch (err) {
       setErrorModal({ baslik: "Hata", mesaj: err.response?.data?.hata || 'Sipariş durumu güncellenemedi.' })
@@ -287,6 +347,42 @@ export default function OrdersTab() {
   }
 
   // ========== YENI SIPARIS ==========
+  const saveYeniMusteri = async (e) => {
+    e.preventDefault()
+
+    const temizTel = yeniMusteriForm.telefon.replace(/\D/g, '')
+    if (temizTel.length < 10) {
+      setErrorModal({ baslik: "Geçersiz Telefon", mesaj: "Lütfen en az 10 haneli geçerli bir telefon numarası girin." })
+      return
+    }
+
+    try {
+      const payload = {
+        ad: capitalize(yeniMusteriForm.ad.trim()),
+        soyad: capitalize(yeniMusteriForm.soyad.trim()),
+        telefon: temizTel,
+        adres: yeniMusteriForm.adres.trim() || null
+      }
+
+      const res = await api.post('/customers', payload)
+      const nm = res.data.musteri
+
+      // Yeni müşteriyi listeye ekle
+      setMusteriler(prev => [nm, ...prev])
+
+      // Sipariş formunda otomatik seçili hale getir
+      setYeniForm(prev => ({
+        ...prev,
+        customer_id: nm.id,
+        customer_search: `${nm.ad} ${nm.soyad}`
+      }))
+
+      setYeniMusteriModal(false)
+    } catch (err) {
+      setErrorModal({ baslik: "Hata", mesaj: err.response?.data?.hata || 'Müşteri kaydedilirken bir hata oluştu.' })
+    }
+  }
+
   const openYeni = () => {
     setYeniForm({
       customer_id: '',
@@ -587,6 +683,26 @@ export default function OrdersTab() {
 
       </div>
 
+      {/* SEÇİLİ SİPARİŞLER ROTA ÇUBUĞU */}
+      {seciliSiparisler.length > 0 && (
+        <div style={{
+          background: '#dbeafe', border: '1px solid #bfdbfe', padding: '12px 20px', 
+          borderRadius: '12px', display: 'flex', justifyContent: 'space-between', 
+          alignItems: 'center', margin: '0 0 20px 0', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.1)'
+        }}>
+          <strong style={{ color: '#1d4ed8', fontSize: '15px' }}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:'middle', marginRight:'6px'}}><circle cx="6" cy="19" r="3"></circle><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"></path><circle cx="18" cy="5" r="3"></circle></svg>
+            {seciliSiparisler.length} Sipariş Rotaya Eklendi
+          </strong>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button className="btn-secondary btn-sm" onClick={() => setSeciliSiparisler([])}>Vazgeç</button>
+            <button className="btn-primary btn-sm" onClick={() => setRotaModalAcik(true)}>
+              Sıralamayı Gör & Başlat
+            </button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p className="empty">Yükleniyor...</p>
       ) : filtreli.length === 0 ? (
@@ -613,8 +729,25 @@ export default function OrdersTab() {
                   
                   {/* BÖLÜM A: Müşteri & Lokasyon */}
                   <div className="order-col-a">
-                    <div className="col-header-row">
-                      <span className="modern-id">#{s.id} {s.irsaliye_no && `· ${s.irsaliye_no}`}</span>
+                    <div className="col-header-row" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {visualDurum === 'paketlendi' && (
+                        <label 
+                          style={{ 
+                            display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', 
+                            padding: '4px 8px', borderRadius: '8px', 
+                            background: seciliSiparisler.some(secili => secili.id === s.id) ? '#dbeafe' : '#f1f5f9', 
+                            border: `1px solid ${seciliSiparisler.some(secili => secili.id === s.id) ? '#bfdbfe' : '#e2e8f0'}`,
+                            transition: 'all 0.2s', flexShrink: 0
+                          }} 
+                          title="Rotaya Ekle"
+                        >
+                          <input type="checkbox" style={{ width: '16px', height: '16px', cursor: 'pointer', margin: 0 }} checked={seciliSiparisler.some(secili => secili.id === s.id)} onChange={() => toggleSiparisSecim(s)} />
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={seciliSiparisler.some(secili => secili.id === s.id) ? '#1d4ed8' : '#64748b'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="6" cy="19" r="3"></circle><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"></path><circle cx="18" cy="5" r="3"></circle>
+                          </svg>
+                        </label>
+                      )}
+                      <span className="modern-id" style={{ flex: 1 }}>#{s.id} {s.irsaliye_no && `· ${s.irsaliye_no}`}</span>
                       <span className={`rozet ${rozet.cls}`}>{rozet.text}</span>
                     </div>
                     <h3 className="modern-customer-name">{s.musteri_ad || 'Bilinmiyor'}</h3>
@@ -758,7 +891,8 @@ export default function OrdersTab() {
                     )
                   })()
                 ) : (
-                  <div className="ys-search">
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <div className="ys-search" style={{ flex: 1 }}>
                     <svg className="ys-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
                     </svg>
@@ -799,11 +933,30 @@ export default function OrdersTab() {
                             </button>
                           ))
                         ) : (
-                          <div className="ys-search-empty">Eşleşen müşteri bulunamadı</div>
+                          <div className="ys-search-empty">
+                            Eşleşen müşteri bulunamadı
+                            <br/>
+                            <button 
+                              type="button" 
+                              onClick={() => { setYeniMusteriForm({ad: '', soyad: '', telefon: '', adres: ''}); setYeniMusteriModal(true); }}
+                              style={{ marginTop: '8px', color: 'var(--color-accent)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+                            >
+                              + Yeni Müşteri Ekle
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
+                  <button 
+                    type="button" 
+                    className="btn-secondary" 
+                    onClick={() => { setYeniMusteriForm({ad: '', soyad: '', telefon: '', adres: ''}); setYeniMusteriModal(true); }}
+                    style={{ padding: '0 16px', height: '42px', flexShrink: 0, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', borderRadius: '10px' }}
+                  >
+                    + Yeni Müşteri
+                  </button>
+                </div>
                 )}
               </div>
 
@@ -1029,6 +1182,76 @@ export default function OrdersTab() {
         </Modal>
       )}
 
+      {/* ROTA SIRALAMA MODALI */}
+      {rotaModalAcik && (
+        <Modal
+          title="🗺️ Teslimat Rotası ve Sıralama"
+          subtitle="Müşterilerin teslimat sırasını sürükle-bırak ile (tutma simgesi) düzenleyebilir ve rotadan çıkarabilirsiniz."
+          size="wide"
+          onClose={() => setRotaModalAcik(false)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px', maxHeight: '50vh', overflowY: 'auto', paddingRight: '8px' }}>
+            {seciliSiparisler.map((s, index) => (
+              <div 
+                key={s.id} 
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => { e.preventDefault(); setDragOverItemIndex(index); }}
+                onDragLeave={() => setDragOverItemIndex(null)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={() => { setDraggedItemIndex(null); setDragOverItemIndex(null); }}
+                style={{ 
+                  display: 'flex', alignItems: 'center', padding: '12px', 
+                  background: dragOverItemIndex === index ? '#f1f5f9' : '#f8fafc', 
+                  borderRadius: '10px', 
+                  border: dragOverItemIndex === index ? '1px dashed #64748b' : '1px solid #e2e8f0',
+                  opacity: draggedItemIndex === index ? 0.4 : 1,
+                  cursor: 'grab', transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '16px', color: '#94a3b8' }}>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <circle cx="9" cy="12" r="1.5"></circle><circle cx="9" cy="5" r="1.5"></circle><circle cx="9" cy="19" r="1.5"></circle>
+                    <circle cx="15" cy="12" r="1.5"></circle><circle cx="15" cy="5" r="1.5"></circle><circle cx="15" cy="19" r="1.5"></circle>
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>
+                    {index + 1}. DURAK {index === seciliSiparisler.length - 1 && '📍 (SON DURAK)'}
+                  </div>
+                  <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>
+                    {s.musteri_ad}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#475569', marginTop: '4px' }}>
+                    {s.musteri_adres || '⚠️ Adres bilgisi girilmemiş!'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const yeniListe = seciliSiparisler.filter(secili => secili.id !== s.id);
+                    setSeciliSiparisler(yeniListe);
+                    if (yeniListe.length === 0) setRotaModalAcik(false);
+                  }}
+                  style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', padding: '8px', color: '#dc2626', marginLeft: '12px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  title="Siparişi Rotadan Çıkar"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="modal-actions">
+            <button className="btn-secondary" onClick={() => setRotaModalAcik(false)}>İptal</button>
+            <button className="btn-primary" onClick={rotayiBaslat} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+              Navigasyonu Başlat
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* GENEL HATA MODALI */}
       {errorModal && (
         <ErrorModal
@@ -1040,6 +1263,59 @@ export default function OrdersTab() {
       {/* GENEL ONAY MODALI */}
       {confirmModal && (
         <ConfirmModal {...confirmModal} onClose={() => setConfirmModal(null)} />
+      )}
+
+      {/* YENİ MÜŞTERİ MODALI (SİPARİŞ İÇİNDEN) */}
+      {yeniMusteriModal && (
+        <Modal title="Yeni Müşteri" subtitle="Siparişe eklemek için yeni bir müşteri kaydı oluşturun." onClose={() => setYeniMusteriModal(false)}>
+          <form onSubmit={saveYeniMusteri}>
+            <label>Ad *</label>
+            <input
+              type="text"
+              value={yeniMusteriForm.ad}
+              onChange={(e) => setYeniMusteriForm({ ...yeniMusteriForm, ad: e.target.value })}
+              required
+              style={{ width: '100%', marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+            />
+
+            <label>Soyad *</label>
+            <input
+              type="text"
+              value={yeniMusteriForm.soyad}
+              onChange={(e) => setYeniMusteriForm({ ...yeniMusteriForm, soyad: e.target.value })}
+              required
+              style={{ width: '100%', marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+            />
+
+            <label>Telefon *</label>
+            <input
+              type="tel"
+              value={yeniMusteriForm.telefon}
+              onChange={(e) => setYeniMusteriForm({ ...yeniMusteriForm, telefon: formatPhoneInput(e.target.value) })}
+              placeholder="0 532 123 45 67"
+              required
+              style={{ width: '100%', marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+            />
+
+            <label>Adres</label>
+            <textarea
+              rows={3}
+              value={yeniMusteriForm.adres}
+              onChange={(e) => setYeniMusteriForm({ ...yeniMusteriForm, adres: e.target.value })}
+              placeholder="Mahalle, sokak, kapı no, ilçe, il"
+              style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', resize: 'vertical' }}
+            />
+
+            <div className="modal-actions" style={{ marginTop: '20px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setYeniMusteriModal(false)}>
+                İptal
+              </button>
+              <button type="submit" className="btn-primary">
+                Kaydet ve Seç
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </section>
   )

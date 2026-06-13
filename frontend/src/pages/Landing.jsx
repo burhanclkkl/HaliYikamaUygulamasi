@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import Footer from '../components/Footer';
+import RouteFeatureSection from '../components/RouteFeatureSection';
 import './Landing.css';
 
 /* Tek tutarlı stroke SVG ikon ailesi (lucide tarzı) — emoji yok */
@@ -65,6 +66,16 @@ function Reveal({ children, className }) {
     </motion.div>
   );
 }
+
+
+/* Bölümler Arası Modern Geçiş Çizgisi */
+const ModernDivider = () => (
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '20px 0' }} aria-hidden="true">
+    <div style={{ width: '2px', height: '60px', background: 'linear-gradient(to bottom, transparent, #cbd5e1)' }}></div>
+    <div style={{ width: '10px', height: '10px', borderRadius: '50%', border: '2.5px solid #2563eb', backgroundColor: '#f8fafc', margin: '4px 0', boxShadow: '0 0 16px rgba(37,99,235,0.4)' }}></div>
+    <div style={{ width: '2px', height: '60px', background: 'linear-gradient(to bottom, #cbd5e1, transparent)' }}></div>
+  </div>
+);
 
 export default function Landing() {
   const [activeStep, setActiveStep] = useState(1);
@@ -157,6 +168,27 @@ export default function Landing() {
           </div>
         </section>
 
+        <ModernDivider />
+
+        {/* DURUM YAŞAM DÖNGÜSÜ ŞERİDİ */}
+        <section className="lifecycle-section" id="ozellikler">
+          <Reveal className="lc-inner">
+            <h2>Her sipariş, teslim alındıdan teslim edildiye izlenir</h2>
+            <p className="lc-sub">Altı net aşama. Personel tek tıkla günceller, müşteri her adımda haberdar olur.</p>
+            <ol className="lc-track">
+              {LIFECYCLE.map(({ label, Icon, state }, i) => (
+                <li key={label} className={`lc-step ${state}`}>
+                  <span className="lc-dot"><Icon /></span>
+                  <span className="lc-label">{label}</span>
+                  {i !== LIFECYCLE.length - 1 && <span className={`lc-connector ${state === 'done' ? 'done' : ''}`} />}
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+        </section>
+
+        <ModernDivider />
+
         {/* İNTERAKTİF SÜREÇ */}
         <section className="interactive-process-section" id="nasil-calisir">
           <div className="process-container">
@@ -234,60 +266,12 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* DURUM YAŞAM DÖNGÜSÜ ŞERİDİ */}
-        <section className="lifecycle-section" id="ozellikler">
-          <Reveal className="lc-inner">
-            <h2>Her sipariş, teslim alındıdan teslim edildiye izlenir</h2>
-            <p className="lc-sub">Altı net aşama. Personel tek tıkla günceller, müşteri her adımda haberdar olur.</p>
-            <ol className="lc-track">
-              {LIFECYCLE.map(({ label, Icon, state }, i) => (
-                <li key={label} className={`lc-step ${state}`}>
-                  <span className="lc-dot"><Icon /></span>
-                  <span className="lc-label">{label}</span>
-                  {i !== LIFECYCLE.length - 1 && <span className={`lc-connector ${state === 'done' ? 'done' : ''}`} />}
-                </li>
-              ))}
-            </ol>
-          </Reveal>
-        </section>
+        <ModernDivider />
 
-        {/* BANT: PDF İRSALİYE (metin sol / kâğıt sağ) */}
-        <section className="cap-section">
-          <Reveal className="cap-row">
-            <div className="cap-text">
-              <h2>Tek tıkla PDF irsaliyeler</h2>
-              <p>Müşterilerinize saniyeler içinde kurumsal irsaliyeler oluşturun. WhatsApp üzerinden gönderin veya çıktı alın.</p>
-              <ul className="cap-list">
-                <li><span className="cap-check"><ico.check /></span> Otomatik m² ve tutar hesaplama</li>
-                <li><span className="cap-check"><ico.check /></span> Kalan borç ve ödeme geçmişi</li>
-                <li><span className="cap-check"><ico.check /></span> Kurumsal ve şık tasarım</li>
-              </ul>
-            </div>
-            <div className="cap-visual">
-              <div className="invoice-paper">
-                <div className="invoice-header">
-                  <h3>HALI YIKAMA UYGULAMASI İRSALİYESİ</h3>
-                  <span>Tarih: {new Date().toLocaleDateString('tr-TR')}</span>
-                </div>
-                <div className="invoice-info">
-                  <div><small>Müşteri</small><strong>Ahmet Yılmaz</strong><span>0 512 345 67 89</span></div>
-                  <div style={{ textAlign: 'right' }}><small>Sipariş No</small><strong>#1042</strong><span>IRS-1042</span></div>
-                </div>
-                <table className="invoice-table">
-                  <thead><tr><th>Halı Tipi</th><th style={{ textAlign: 'center' }}>m²</th><th style={{ textAlign: 'right' }}>Tutar</th></tr></thead>
-                  <tbody>
-                    <tr><td>Makine Halısı</td><td style={{ textAlign: 'center' }}>4.50</td><td style={{ textAlign: 'right' }}>450,00 TL</td></tr>
-                    <tr><td>El Dokuma</td><td style={{ textAlign: 'center' }}>2.00</td><td style={{ textAlign: 'right' }}>300,00 TL</td></tr>
-                  </tbody>
-                </table>
-                <div className="invoice-total">
-                  <div className="invoice-total-row"><span>Ödenen</span> <span>250,00 TL</span></div>
-                  <div className="invoice-total-row highlight"><span>Kalan Borç</span> <span>500,00 TL</span></div>
-                </div>
-              </div>
-            </div>
-          </Reveal>
-        </section>
+        {/* BANT: AKILLI TESLİMAT ROTASI (HARİTA & KAMYONET) */}
+        <RouteFeatureSection />
+
+        <ModernDivider />
 
         {/* BANT: WHATSAPP (telefon sol / metin sağ) */}
         <section className="cap-section">
@@ -337,6 +321,48 @@ export default function Landing() {
           </Reveal>
         </section>
 
+        <ModernDivider />
+
+        {/* BANT: PDF İRSALİYE (metin sol / kâğıt sağ) */}
+        <section className="cap-section">
+          <Reveal className="cap-row">
+            <div className="cap-text">
+              <h2>Tek tıkla PDF irsaliyeler</h2>
+              <p>Müşterilerinize saniyeler içinde kurumsal irsaliyeler oluşturun. WhatsApp üzerinden gönderin veya çıktı alın.</p>
+              <ul className="cap-list">
+                <li><span className="cap-check"><ico.check /></span> Otomatik m² ve tutar hesaplama</li>
+                <li><span className="cap-check"><ico.check /></span> Kalan borç ve ödeme geçmişi</li>
+                <li><span className="cap-check"><ico.check /></span> Kurumsal ve şık tasarım</li>
+              </ul>
+            </div>
+            <div className="cap-visual">
+              <div className="invoice-paper">
+                <div className="invoice-header">
+                  <h3>HALI YIKAMA UYGULAMASI İRSALİYESİ</h3>
+                  <span>Tarih: {new Date().toLocaleDateString('tr-TR')}</span>
+                </div>
+                <div className="invoice-info">
+                  <div><small>Müşteri</small><strong>Ahmet Yılmaz</strong><span>0 512 345 67 89</span></div>
+                  <div style={{ textAlign: 'right' }}><small>Sipariş No</small><strong>#1042</strong><span>IRS-1042</span></div>
+                </div>
+                <table className="invoice-table">
+                  <thead><tr><th>Halı Tipi</th><th style={{ textAlign: 'center' }}>m²</th><th style={{ textAlign: 'right' }}>Tutar</th></tr></thead>
+                  <tbody>
+                    <tr><td>Makine Halısı</td><td style={{ textAlign: 'center' }}>4.50</td><td style={{ textAlign: 'right' }}>450,00 TL</td></tr>
+                    <tr><td>El Dokuma</td><td style={{ textAlign: 'center' }}>2.00</td><td style={{ textAlign: 'right' }}>300,00 TL</td></tr>
+                  </tbody>
+                </table>
+                <div className="invoice-total">
+                  <div className="invoice-total-row"><span>Ödenen</span> <span>250,00 TL</span></div>
+                  <div className="invoice-total-row highlight"><span>Kalan Borç</span> <span>500,00 TL</span></div>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </section>
+
+        <ModernDivider />
+
         {/* BANT: FİNANS & ANALİZ (mockup sol / metin sağ) */}
         <section className="cap-section">
           <Reveal className="cap-row">
@@ -369,14 +395,46 @@ export default function Landing() {
           </Reveal>
         </section>
 
+        <ModernDivider />
+
         {/* KAPANIŞ CTA BANDI */}
         <section className="cta-section">
           <Reveal className="cta-inner">
-            <h2>İşletmenizi düzene sokmaya hazır mısınız?</h2>
-            <p>Halı Yıkama Uygulaması'nı işletmenize göre kuralım. Birkaç dakikada başlayın.</p>
-            <div className="cta-actions">
-              <a href="mailto:hali.temizleme@protonmail.com" className="cta-primary-large">İletişime geçin <ico.arrowRight /></a>
-              <Link to="/login" className="cta-ghost">Giriş yap</Link>
+            <div className="cta-content">
+              <div className="cta-badge-modern">
+                <span className="pulse-dot"></span> İŞLETMENİZİ DİJİTALE TAŞIYIN
+              </div>
+              <h2>Kağıt fişleri çöpe atın,<br/>işinizi tek ekrandan yönetin.</h2>
+              <p>Karmaşık hesap kitap işlerini ve kaybolan siparişleri geride bırakın. Halı yıkama operasyonunuzu bugün dijitalleştirerek verimliliğinizi zirveye çıkarın.</p>
+              <div className="cta-actions">
+                <Link to="/login" className="cta-btn-primary">Sisteme Giriş Yap <ico.arrowRight /></Link>
+                <a href="mailto:hali.temizleme@protonmail.com" className="cta-btn-outline">Bize Ulaşın</a>
+              </div>
+            </div>
+            
+            {/* Sağ Taraf - 3B Modern Arayüz Önizlemesi */}
+            <div className="cta-visual-mockup" aria-hidden="true">
+              <div className="mockup-header">
+                <div className="m-dot"></div><div className="m-dot"></div><div className="m-dot"></div>
+              </div>
+              <div className="mockup-body">
+                <div className="m-line short"></div>
+                <div className="m-line long"></div>
+                <div className="m-card">
+                  <div className="m-avatar"></div>
+                  <div className="m-lines">
+                    <div className="m-line"></div>
+                    <div className="m-line short"></div>
+                  </div>
+                </div>
+                <div className="m-card" style={{ opacity: 0.6 }}>
+                  <div className="m-avatar"></div>
+                  <div className="m-lines">
+                    <div className="m-line"></div>
+                    <div className="m-line" style={{ width: '30%' }}></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </Reveal>
         </section>
